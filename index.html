@@ -95,6 +95,17 @@
     box-shadow:3px 3px 0 #000, inset 0 0 14px #000;
     transform:rotate(2deg);white-space:nowrap;
   }
+  .ugly-mini{
+    position:fixed;right:14px;top:12px;z-index:60;
+    font-family:"Courier New",monospace;font-size:10px;font-weight:bold;letter-spacing:.12em;
+    color:#ffd700;background:#1a0033;border:2px solid #ffd700;
+    padding:5px 9px;cursor:pointer;transform:rotate(1.6deg);opacity:.62;
+    box-shadow:2px 2px 0 #000;
+  }
+  .ugly-mini:hover{opacity:1;transform:rotate(-2deg) scale(1.06);color:#fff;}
+  @media (max-width:560px){
+    .ugly-mini{font-size:9px;padding:4px 6px;letter-spacing:0;opacity:.8;}
+  }
   .ugly-btn:hover{transform:rotate(-3deg) scale(1.08);color:#fff;}
   .ugly-btn:active{transform:translate(2px,2px) rotate(1deg);box-shadow:none;}
 
@@ -160,13 +171,23 @@
 
   /* ---------- 共用层 ---------- */
   #sky{position:fixed;inset:0;pointer-events:none;z-index:4;overflow:hidden;}
-  .bread{position:absolute;line-height:1;will-change:left,top,transform;transform-origin:50% 50%;}
+  .bread{position:absolute;line-height:1;transform-origin:50% 50%;}
   .bread .bd-e{display:block;}
   .bread svg{display:none;}
-  body.mode-ugly .bread{
-    filter:drop-shadow(0 0 10px rgba(255,215,0,.85)) drop-shadow(0 0 22px rgba(160,32,240,.6));
+  body.mode-ugly .bread{filter:none;}
+  body.mode-ugly .bd-e{
+    text-shadow:0 0 6px rgba(255,215,0,.9), 0 0 15px rgba(160,32,240,.65);
   }
-  body.mode-ugly .bread.rest{filter:drop-shadow(0 0 5px rgba(255,215,0,.5));}
+  body.mode-ugly .bread.rest .bd-e{
+    text-shadow:0 0 6px rgba(255,215,0,.55);
+  }
+  /* 一条静态的金紫氛围光带，比给两百个节点各挂一层模糊便宜太多 */
+  body.mode-ugly #sky::before{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:280px;
+    background:radial-gradient(ellipse 72% 105% at 50% 128%,
+      rgba(255,215,0,.20), rgba(160,32,240,.20) 46%, rgba(160,32,240,0) 76%);
+    pointer-events:none;
+  }
   body.mode-clean .bread.rest{filter:none;}
   body.mode-clean .bread{
     filter:drop-shadow(0 2px 3px rgba(28,25,23,.10));
@@ -257,6 +278,7 @@
   <h1 id="title">★ 面 包 发 射 器 ★</h1>
   <div id="ticker"><span>滴 滴 滴 ・ 面 包 已 上 膛 ・ 点 击 橙 子 立 即 发 射 ・ 后 果 自 负 ・ 本 产 品 不 提 供 任 何 保 险 ・ 请 勿 对 准 邻 居 ・ 已 经 报 警 了 也 没 用 ・</span></div>
 
+  <button id="btn-reset-all" class="ugly-mini" title="回到最开始的状态">重 置</button>
   <div id="orange">🍊</div>
   <div id="hint">↑↑↑ 点 这 个 橙 子 ↑↑↑</div>
 
@@ -270,7 +292,6 @@
     <div id="stats">已发射 <b id="n1">0</b> 个面包 ・ 已落地 <b id="n2">0</b> 个 ・ 现场混乱度 <b id="n3">0</b>% ・ 切换 <b id="n4">0</b> 次</div>
     <div class="bar-btns">
       <button id="btn-switch" class="ugly-btn" style="display:none">切 正 常 模 式</button>
-      <button id="btn-reset-switch" class="ugly-btn" style="display:none">清 零 切 换</button>
       <button id="reset" class="ugly-btn">清 理 现 场</button>
     </div>
   </div>
@@ -339,7 +360,7 @@
   var modal = document.getElementById('modal');
   var veil = document.getElementById('veil');
   var btnSwitch = document.getElementById('btn-switch');
-  var btnResetSwitch = document.getElementById('btn-reset-switch');
+  var btnResetAll = document.getElementById('btn-reset-all');
   var n4 = document.getElementById('n4');
   var cSwitch = document.getElementById('c-switch');
   var cSwitchCount = document.getElementById('c-switch-count');
@@ -357,10 +378,10 @@
   var everSwitched = false;
   var declined = false;   // 第一次弹窗选了「不换」，从此也算解锁
   var cleanVisits = 0;    // 进过几次正常模式，第二次起才给回程按钮
-  var backFromClean = false;
   var switching = false;
   var SNAP = false;
   var items = [];
+  var MAX_BREADS = 280;   // 再往上加只会重叠，纯烧显卡
   var launched = 0, landed = 0;
   var gen = 0;
   var W = 0, H = 0, GY = 0;
@@ -414,6 +435,11 @@
   }
 
   function shot(ox, oy, power) {
+    if (items.length >= MAX_BREADS) {
+      for (var k = 0; k < items.length; k++) {
+        if (items[k].dead) { items[k].el.remove(); items.splice(k, 1); break; }
+      }
+    }
     var size = 28 + Math.random() * 44;
     var angle = (-155 + Math.random() * 130) * Math.PI / 180;
     var sp = power || (13 + Math.random() * 15);
@@ -470,7 +496,6 @@
     cCount.textContent = '已发射 ' + launched + ' 个';
     cSwitchCount.textContent = '切换 ' + switchCount + ' 次';
     btnSwitch.style.display = (everSwitched || declined) ? 'inline-block' : 'none';
-    btnResetSwitch.style.display = backFromClean ? 'inline-block' : 'none';
     cSwitch.style.display = cleanVisits >= 2 ? 'inline-block' : 'none';
   }
 
@@ -566,13 +591,14 @@
     requestAnimationFrame(loop);
   }
 
-  function switchMode(to, cb) {
+  function switchMode(to, cb, silent) {
     if (switching || to === mode) return;
     switching = true;
-    switchCount++;
-    everSwitched = true;
-    if (to === 'clean') cleanVisits++;
-    if (to === 'ugly') backFromClean = true;
+    if (!silent) {
+      switchCount++;
+      everSwitched = true;
+      if (to === 'clean') cleanVisits++;
+    }
     veil.className = 'on ' + (to === 'clean' ? 'veil-light' : 'veil-dark');
     setTimeout(function () {
       mode = to;
@@ -659,10 +685,16 @@
   btnSwitch.addEventListener('click', function () { switchMode('clean'); });
   cSwitch.addEventListener('click', function () { switchMode('ugly'); });
 
-  btnResetSwitch.addEventListener('click', function () {
+  btnResetAll.addEventListener('click', function () {
+    modal.classList.remove('show');
     switchCount = 0;
+    everSwitched = false;
+    declined = false;
+    cleanVisits = 0;
+    clearAll();
+    if (mode !== 'ugly') switchMode('ugly', null, true);
     syncUI();
-    blip(520);
+    blip(200);
   });
 
   document.getElementById('c-sound').addEventListener('click', function () {
@@ -692,7 +724,7 @@
     paint();
     if (QS.get('ui') === 'full') {
       switchCount = 3; everSwitched = true; declined = true;
-      cleanVisits = 2; backFromClean = true;
+      cleanVisits = 2;
     }
     syncUI();
     if (QS.get('modal')) modal.classList.add('show');
