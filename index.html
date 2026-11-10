@@ -342,6 +342,7 @@
   var SNAP = false;
   var items = [];
   var launched = 0, landed = 0;
+  var gen = 0;
   var W = 0, H = 0, GY = 0;
   var WHACK = ['咚', '啪', '噗', '哐', '咻', '吧唧', '咚!', '啪!', '噗嗤', '轰'];
 
@@ -353,7 +354,7 @@
   measure();
   window.addEventListener('resize', function () { measure(); realign(); });
 
-  function confusion() { return Math.min(100, Math.round(landed * 6.5)); }
+  function confusion() { return Math.min(100, Math.round(landed * 2)); }
 
   var AC = null;
   function blip(f) {
@@ -412,7 +413,9 @@
       vy: Math.sin(angle) * sp,
       rot: 0,
       vr: (Math.random() - 0.5) * 22,
-      jit: Math.random() < 0.6 ? Math.random() * 40 : 0,
+      jit: mode === 'clean'
+        ? (Math.random() < 0.3 ? Math.random() * 14 : 0)
+        : (Math.random() < 0.6 ? Math.random() * 40 : 0),
       size: size,
       bounces: 0,
       dead: false,
@@ -428,9 +431,10 @@
     var r = el.getBoundingClientRect();
     var ox = r.left + r.width / 2;
     var oy = r.top + r.height / 2;
+    var g = gen;
     for (var i = 0; i < n; i++) {
       (function (k) {
-        setTimeout(function () { shot(ox, oy); }, k * 55);
+        setTimeout(function () { if (g === gen) shot(ox, oy); }, k * 42);
       })(i);
     }
   }
@@ -543,7 +547,13 @@
       document.body.classList.remove('mode-ugly', 'mode-clean');
       document.body.classList.add('mode-' + to);
       measure();
-      realign();
+      if (to === 'clean') {
+        wipe();
+        crashed = false;
+        asked = true;
+      } else {
+        realign();
+      }
       syncUI();
       veil.className = '';
       switching = false;
@@ -551,7 +561,18 @@
     }, 190);
   }
 
+  function wipe() {
+    gen++;
+    for (var i = 0; i < items.length; i++) items[i].el.remove();
+    items = [];
+    var ps = sky.querySelectorAll('.pop');
+    for (var k = 0; k < ps.length; k++) ps[k].remove();
+    launched = 0;
+    landed = 0;
+  }
+
   function dumpAll() {
+    gen++;
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       it.dead = false;
@@ -570,11 +591,15 @@
     setTimeout(function () {
       document.body.classList.remove('crash');
       dumpAll();
-      switchMode('ugly', function () { flash('（装不下去了）'); });
+      switchMode('ugly', function () {
+        flash('（装不下去了）');
+        btnSwitch.style.display = 'inline-block';
+      });
     }, 320);
   }
 
   function clearAll() {
+    gen++;
     items.forEach(function (it) { it.el.remove(); });
     items = [];
     launched = 0;
@@ -585,9 +610,9 @@
     syncUI();
   }
 
-  orange.addEventListener('click', function (e) { e.preventDefault(); fire(Math.random() < 0.35 ? 3 : 1); });
+  orange.addEventListener('click', function (e) { e.preventDefault(); fire(4 + Math.floor(Math.random() * 4)); });
   orange.addEventListener('mouseenter', function () { blip(660); });
-  cOrb.addEventListener('click', function (e) { e.preventDefault(); fire(Math.random() < 0.35 ? 3 : 1); });
+  cOrb.addEventListener('click', function (e) { e.preventDefault(); fire(4 + Math.floor(Math.random() * 4)); });
   cOrb.addEventListener('mouseenter', function () { blip(760); });
 
   document.getElementById('reset').addEventListener('click', function () { clearAll(); blip(180); });
@@ -623,8 +648,8 @@
       measure();
     }
     var plan = mode === 'clean'
-      ? [22, 26, 30, 19, 27, 24, 31, 20, 25, 28, 16]
-      : [22, 18, 26, 30, 19, 24, 31, 17, 27, 20, 23, 25, 28, 16];
+      ? [22, 26, 30, 19, 27, 24, 31, 20, 25, 28, 16, 23, 29, 18, 26, 21, 30, 24, 27, 19, 25, 17, 28, 22, 26, 20, 29, 23, 18, 27, 21, 25]
+      : [22, 18, 26, 30, 19, 24, 31, 17, 27, 20, 23, 25, 28, 16, 29, 21, 26, 19, 24, 30, 18, 27, 22, 25, 28, 20, 23, 26, 17, 29, 21, 24, 30, 19, 27, 22];
     var ox = W * 0.5, oy = mode === 'clean' ? H * 0.44 : H * 0.47;
     for (var p = 0; p < plan.length; p++) {
       shot(ox + (Math.random() - 0.5) * W * 0.24, oy, plan[p]);
@@ -635,8 +660,8 @@
     if (QS.get('modal')) modal.classList.add('show');
   } else {
     requestAnimationFrame(loop);
-    setTimeout(function () { fire(1); }, 420);
-    setTimeout(function () { fire(2); }, 700);
+    setTimeout(function () { fire(4); }, 420);
+    setTimeout(function () { fire(5); }, 760);
   }
 })();
 </script>
