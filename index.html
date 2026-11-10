@@ -149,7 +149,8 @@
   .c-meter-head span:last-child{font-size:12px;font-weight:500;color:#1C1917;}
   .c-track{height:5px;border-radius:3px;background:#EFEAE1;overflow:hidden;}
   #c-fill{height:100%;width:0;border-radius:3px;background:#EF9F27;transition:width .25s ease;}
-  .c-foot-row{display:flex;justify-content:space-between;align-items:center;margin-top:9px;}
+  .c-foot-row{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:10px;}
+  .c-act{display:flex;align-items:center;gap:10px;}
   .c-foot-row span{font-size:11px;color:#C0B8AC;}
   #c-clear{
     font:inherit;font-size:11px;color:#C0B8AC;background:none;border:0;padding:0;
@@ -266,9 +267,10 @@
   <div class="deco" style="left:44%;top:8%;font-size:28px;opacity:.35;transform:rotate(6deg)">✨</div>
 
   <div id="bar">
-    <div id="stats">已发射 <b id="n1">0</b> 个面包 ・ 已落地 <b id="n2">0</b> 个 ・ 现场混乱度 <b id="n3">0</b>%</div>
+    <div id="stats">已发射 <b id="n1">0</b> 个面包 ・ 已落地 <b id="n2">0</b> 个 ・ 现场混乱度 <b id="n3">0</b>% ・ 切换 <b id="n4">0</b> 次</div>
     <div class="bar-btns">
       <button id="btn-switch" class="ugly-btn" style="display:none">切 正 常 模 式</button>
+      <button id="btn-reset-switch" class="ugly-btn" style="display:none">清 零 切 换</button>
       <button id="reset" class="ugly-btn">清 理 现 场</button>
     </div>
   </div>
@@ -300,7 +302,14 @@
   <footer class="c-foot">
     <div class="c-meter-head"><span>现场混乱度</span><span id="c-pct">0%</span></div>
     <div class="c-track"><div id="c-fill"></div></div>
-    <div class="c-foot-row"><span id="c-count">已发射 0 个</span><button id="c-clear">清空现场</button></div>
+    <div class="c-foot-row">
+      <span id="c-count">已发射 0 个</span>
+      <span id="c-switch-count">切换 0 次</span>
+      <div class="c-act">
+        <button id="c-switch" class="c-pill" style="display:none">切换模式</button>
+        <button id="c-clear">清空现场</button>
+      </div>
+    </div>
   </footer>
 </div>
 
@@ -330,6 +339,10 @@
   var modal = document.getElementById('modal');
   var veil = document.getElementById('veil');
   var btnSwitch = document.getElementById('btn-switch');
+  var btnResetSwitch = document.getElementById('btn-reset-switch');
+  var n4 = document.getElementById('n4');
+  var cSwitch = document.getElementById('c-switch');
+  var cSwitchCount = document.getElementById('c-switch-count');
 
   var BREAD_SVG = '<svg viewBox="0 0 42 37" width="1.12em" height="0.99em" aria-hidden="true">' +
     '<path d="M5 14 Q5 5 12 5 Q17 5 20 8 Q23 5 29 5 Q37 5 37 14 V26 Q37 31 31 31 H11 Q5 31 5 26 Z" fill="#F6DDB4"/>' +
@@ -340,6 +353,11 @@
   var soundOn = true;
   var asked = false;
   var crashed = false;
+  var switchCount = 0;    // 一共切了几次
+  var everSwitched = false;
+  var declined = false;   // 第一次弹窗选了「不换」，从此也算解锁
+  var cleanVisits = 0;    // 进过几次正常模式，第二次起才给回程按钮
+  var backFromClean = false;
   var switching = false;
   var SNAP = false;
   var items = [];
@@ -446,14 +464,19 @@
     n1.textContent = launched;
     n2.textContent = landed;
     n3.textContent = pct;
+    n4.textContent = switchCount;
     cPct.textContent = pct + '%';
     cFill.style.width = pct + '%';
     cCount.textContent = '已发射 ' + launched + ' 个';
+    cSwitchCount.textContent = '切换 ' + switchCount + ' 次';
+    btnSwitch.style.display = (everSwitched || declined) ? 'inline-block' : 'none';
+    btnResetSwitch.style.display = backFromClean ? 'inline-block' : 'none';
+    cSwitch.style.display = cleanVisits >= 2 ? 'inline-block' : 'none';
   }
 
   function checkTrigger() {
     var pct = confusion();
-    if (mode === 'ugly' && !asked && pct >= 60) {
+    if (mode === 'ugly' && !asked && !everSwitched && !declined && pct >= 60) {
       asked = true;
       modal.classList.add('show');
       blip(880);
@@ -546,6 +569,10 @@
   function switchMode(to, cb) {
     if (switching || to === mode) return;
     switching = true;
+    switchCount++;
+    everSwitched = true;
+    if (to === 'clean') cleanVisits++;
+    if (to === 'ugly') backFromClean = true;
     veil.className = 'on ' + (to === 'clean' ? 'veil-light' : 'veil-dark');
     setTimeout(function () {
       mode = to;
@@ -553,7 +580,6 @@
       document.body.classList.add('mode-' + to);
       measure();
       wipe();
-      btnSwitch.style.display = 'none';
       if (to === 'clean') {
         crashed = false;
         asked = true;
@@ -608,7 +634,6 @@
     landed = 0;
     asked = false;
     crashed = false;
-    btnSwitch.style.display = 'none';
     syncUI();
   }
 
@@ -626,11 +651,19 @@
   });
   document.getElementById('m-no').addEventListener('click', function () {
     modal.classList.remove('show');
-    btnSwitch.style.display = 'inline-block';
+    declined = true;
+    syncUI();
     flash('那 就 继 续 乱 下 去');
   });
 
   btnSwitch.addEventListener('click', function () { switchMode('clean'); });
+  cSwitch.addEventListener('click', function () { switchMode('ugly'); });
+
+  btnResetSwitch.addEventListener('click', function () {
+    switchCount = 0;
+    syncUI();
+    blip(520);
+  });
 
   document.getElementById('c-sound').addEventListener('click', function () {
     soundOn = !soundOn;
@@ -657,6 +690,10 @@
     }
     for (var s = 0; s < 900; s++) step();
     paint();
+    if (QS.get('ui') === 'full') {
+      switchCount = 3; everSwitched = true; declined = true;
+      cleanVisits = 2; backFromClean = true;
+    }
     syncUI();
     if (QS.get('modal')) modal.classList.add('show');
   } else {
