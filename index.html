@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ojipan · 橘子发射面包</title>
+<meta name="description" content="点一下橘子，面包就往四面八方飞出去。一个故意做丑的单页玩具。">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ojipan · 橘子发射面包">
+<meta property="og:description" content="点一下橘子，面包就往四面八方飞出去。">
+<meta property="og:url" content="https://ojipan.attilio.cc/">
+<meta property="og:image" content="https://ojipan.attilio.cc/preview.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;}
+  body{
+    background-color:#000;
+    background-image:
+      radial-gradient(circle at 50% 34%, #4a0a78 0%, #1a0028 40%, #000 74%),
+      repeating-linear-gradient(45deg, rgba(255,215,0,.055) 0 2px, transparent 2px 15px);
+    font-family:"Comic Sans MS","Chalkboard SE","PingFang SC",Impact,sans-serif;
+    color:#ffd700;
+    cursor:crosshair;
+    user-select:none;-webkit-user-select:none;
+  }
+  body.shake{animation:shk .16s linear;}
+  @keyframes shk{
+    0%{transform:translate(0,0);}25%{transform:translate(4px,-3px);}
+    50%{transform:translate(-3px,2px);}75%{transform:translate(2px,3px);}
+    100%{transform:translate(0,0);}
+  }
+
+  #title{
+    position:absolute;top:12px;left:0;right:0;margin:0;text-align:center;
+    font-size:50px;font-style:italic;letter-spacing:5px;
+    color:#ffd700;-webkit-text-stroke:2px #a020f0;
+    text-shadow:4px 4px 0 #6a0dad, 9px 9px 0 #000, 0 0 34px #b06cff;
+    transform:rotate(-2deg);z-index:6;pointer-events:none;
+  }
+
+  #ticker{
+    position:absolute;top:94px;left:0;right:0;height:32px;overflow:hidden;
+    background:repeating-linear-gradient(90deg,#2a0044 0 18px,#170029 18px 36px);
+    border-top:3px double #ffd700;border-bottom:3px double #ffd700;
+    font-size:14px;letter-spacing:2px;color:#b06cff;white-space:nowrap;
+    z-index:5;
+  }
+  #ticker span{display:inline-block;padding-left:100%;animation:roll 18s linear infinite;}
+  @keyframes roll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
+  body.snap #ticker span{animation-delay:-7s;}
+  body.snap #title{transform:rotate(-2deg) scale(1.02);}
+  body.snap .pop{animation:none;opacity:.9;transform:translate(-50%,-50%) rotate(-7deg);}
+
+  #orange{
+    position:absolute;left:50%;top:47%;width:186px;height:186px;
+    margin:-93px 0 0 -93px;border-radius:50%;
+    border:9px ridge #ffd700;
+    background:repeating-conic-gradient(from 0deg,#b06cff 0 18deg,#ffd700 18deg 36deg);
+    font-size:94px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 7px #000, 0 0 44px #a020f0, inset 0 0 60px #000;
+    cursor:pointer;z-index:2;outline:none;
+    animation:wob 2.4s ease-in-out infinite;
+  }
+  #orange:active{box-shadow:0 0 0 7px #ffd700, 0 0 80px #ffd700, inset 0 0 70px #000;}
+  @keyframes wob{
+    0%,100%{transform:rotate(-5deg) scale(1);}
+    50%{transform:rotate(5deg) scale(1.07);}
+  }
+
+  #hint{
+    position:absolute;left:50%;top:calc(47% + 118px);transform:translateX(-50%) rotate(-3deg);
+    font-size:19px;font-style:italic;letter-spacing:2px;color:#ffd700;
+    -webkit-text-stroke:1px #000;text-shadow:2px 2px 0 #a020f0;
+    animation:hop 1.1s ease-in-out infinite;z-index:5;pointer-events:none;
+  }
+  @keyframes hop{0%,100%{transform:translateX(-50%) rotate(-3deg) translateY(0);}
+    50%{transform:translateX(-50%) rotate(3deg) translateY(-7px);}}
+
+  #sky{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden;}
+  .bread{
+    position:absolute;line-height:1;will-change:transform,left,top;
+    filter:drop-shadow(0 0 10px rgba(255,215,0,.85)) drop-shadow(0 0 22px rgba(160,32,240,.6));
+    transform-origin:50% 50%;
+  }
+  .pop{
+    position:absolute;font-size:20px;font-style:italic;color:#ffd700;white-space:nowrap;
+    -webkit-text-stroke:1px #000;text-shadow:2px 2px 0 #a020f0;
+    z-index:98;animation:popup .95s ease-out forwards;
+  }
+  @keyframes popup{
+    0%{opacity:1;transform:translate(-50%,-50%) scale(.5) rotate(-10deg);}
+    100%{opacity:0;transform:translate(-50%,-160%) scale(1.8) rotate(14deg);}
+  }
+
+  #bar{
+    position:absolute;left:0;right:0;bottom:0;height:48px;z-index:10;
+    background:repeating-linear-gradient(90deg,#2a0044 0 10px,#3d0061 10px 20px);
+    border-top:4px dashed #ffd700;
+    display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+    font-family:"Courier New",monospace;font-size:15px;font-weight:bold;color:#ffd700;
+    text-shadow:1px 1px 0 #000;
+  }
+  #stats{letter-spacing:1px;}
+  #stats b{color:#b06cff;font-size:19px;}
+  #reset{
+    font-family:"Comic Sans MS","PingFang SC",sans-serif;font-size:15px;font-style:italic;
+    padding:5px 14px;cursor:pointer;color:#ffd700;
+    background:repeating-linear-gradient(45deg,#3d0061 0 6px,#6a0dad 6px 12px);
+    border:4px ridge #ffd700;border-radius:0;
+    box-shadow:3px 3px 0 #000, inset 0 0 14px #000;
+    transform:rotate(2deg);
+  }
+  #reset:hover{transform:rotate(-3deg) scale(1.08);color:#fff;}
+  #reset:active{transform:translate(2px,2px) rotate(1deg);box-shadow:none;}
+
+  .deco{position:absolute;font-size:46px;opacity:.5;filter:drop-shadow(0 0 10px #a020f0);z-index:1;pointer-events:none;}
+</style>
+</head>
+<body>
+
+  <h1 id="title">★ 面 包 发 射 器 ★</h1>
+  <div id="ticker"><span>滴 滴 滴 ・ 面 包 已 上 膛 ・ 点 击 橙 子 立 即 发 射 ・ 后 果 自 负 ・ 本 产 品 不 提 供 任 何 保 险 ・ 请 勿 对 准 邻 居 ・ 已 经 报 警 了 也 没 用 ・</span></div>
+
+  <div id="orange">🍊</div>
+  <div id="hint">↑↑↑ 点 这 个 橙 子 ↑↑↑</div>
+
+  <div id="sky"></div>
+
+  <div id="bar">
+    <div id="stats">已发射 <b id="n1">0</b> 个面包 ・ 已落地 <b id="n2">0</b> 个 ・ 现场混乱度 <b id="n3">0</b>%</div>
+    <button id="reset">清 理 现 场</button>
+  </div>
+
+  <div class="deco" style="left:2%;top:32%;transform:rotate(-18deg)">🥐</div>
+  <div class="deco" style="right:3%;top:22%;transform:rotate(24deg)">🥖</div>
+  <div class="deco" style="left:6%;bottom:12%;transform:rotate(12deg)">🧀</div>
+  <div class="deco" style="right:7%;bottom:14%;transform:rotate(-30deg)">🥯</div>
+  <div class="deco" style="left:44%;top:8%;font-size:28px;opacity:.35;transform:rotate(6deg)">✨</div>
+
+<script>
+(function () {
+  var sky = document.getElementById('sky');
+  var orange = document.getElementById('orange');
+  var n1 = document.getElementById('n1'), n2 = document.getElementById('n2'), n3 = document.getElementById('n3');
+  var bar = document.getElementById('bar');
+
+  var W = 0, H = 0, GY = 0;
+  function measure() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    GY = H - 48 - 8;
+  }
+  measure();
+  window.addEventListener('resize', measure);
+
+  var items = [];
+  var launched = 0, landed = 0;
+  var WHACK = ['咚', '啪', '噗', '哐', '咻', '吧唧', '咚!', '啪!', '噗嗤', '轰'];
+
+  var AC = null;
+  function blip(f) {
+    try {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      var o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+      o.type = 'square';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.exponentialRampToValueAtTime(Math.max(60, f / 3), t + 0.16);
+      g.gain.setValueAtTime(0.07, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+      o.connect(g); g.connect(AC.destination);
+      o.start(t); o.stop(t + 0.2);
+    } catch (e) {}
+  }
+
+  function pop(x, y, txt, size) {
+    var d = document.createElement('div');
+    d.className = 'pop';
+    d.textContent = txt;
+    d.style.left = Math.min(Math.max(x, 44), W - 44) + 'px';
+    d.style.top = y + 'px';
+    if (size) d.style.fontSize = size + 'px';
+    sky.appendChild(d);
+    if (!document.body.classList.contains('snap')) {
+      setTimeout(function () { d.remove(); }, 1000);
+    }
+  }
+
+  function shoot(ox, oy, power) {
+    var size = 28 + Math.random() * 44;
+    var angle = (-155 + Math.random() * 130) * Math.PI / 180;
+    var sp = power || (13 + Math.random() * 15);
+    var el = document.createElement('div');
+    el.className = 'bread';
+    el.textContent = Math.random() < 0.15 ? '🥐' : (Math.random() < 0.1 ? '🥖' : '🍞');
+    el.style.fontSize = size + 'px';
+    el.style.zIndex = 10 + Math.floor(Math.random() * 70);
+    el.style.left = ox + 'px';
+    el.style.top = oy + 'px';
+    el.style.transform = 'translate(-50%,-50%) rotate(0deg)';
+    sky.appendChild(el);
+
+    items.push({
+      el: el, x: ox, y: oy,
+      vx: Math.cos(angle) * sp,
+      vy: Math.sin(angle) * sp,
+      rot: 0,
+      vr: (Math.random() - 0.5) * 22,
+      jit: Math.random() < 0.45 ? Math.random() * 18 : 0,
+      size: size,
+      bounces: 0,
+      dead: false
+    });
+    launched++;
+    n1.textContent = launched;
+    blip(280 + Math.random() * 380);
+  }
+
+  function fire(n) {
+    var r = orange.getBoundingClientRect();
+    var ox = r.left + r.width / 2;
+    var oy = r.top + r.height / 2;
+    for (var i = 0; i < n; i++) {
+      (function (k) {
+        setTimeout(function () { shoot(ox, oy); }, k * 55);
+      })(i);
+    }
+  }
+
+  orange.addEventListener('click', function (e) {
+    e.preventDefault();
+    fire(Math.random() < 0.35 ? 3 : 1);
+  });
+
+  orange.addEventListener('mouseenter', function () { blip(660); });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    items.forEach(function (it) { it.el.remove(); });
+    items = [];
+    launched = 0; landed = 0;
+    n1.textContent = '0'; n2.textContent = '0'; n3.textContent = '0';
+    blip(180);
+  });
+
+  function step() {
+    var i, it;
+    for (i = 0; i < items.length; i++) {
+      it = items[i];
+      if (it.dead) continue;
+
+      it.vy += 0.62;
+      it.vx *= 0.9985;
+      it.x += it.vx;
+      it.y += it.vy;
+      it.rot += it.vr;
+
+      if (it.x < 14) { it.x = 14; it.vx = Math.abs(it.vx) * 0.62; it.vr *= -0.8; }
+      if (it.x > W - 14) { it.x = W - 14; it.vx = -Math.abs(it.vx) * 0.62; it.vr *= -0.8; }
+
+      var floor = GY - it.size * 0.34 - (it.jit || 0);
+      if (it.y > floor) {
+        it.y = floor;
+        if (Math.abs(it.vy) > 3.2) {
+          it.vy = -it.vy * 0.42;
+          it.vx *= 0.78;
+          it.vr *= 0.55;
+          it.bounces++;
+          if (it.bounces === 1) { pop(it.x, floor, WHACK[Math.floor(Math.random() * WHACK.length)], 18 + Math.random() * 14); blip(140); }
+        } else {
+          it.vy = 0;
+          it.vx *= 0.72;
+          it.vr *= 0.6;
+          if (Math.abs(it.vx) < 0.35 && Math.abs(it.vr) < 0.6) {
+            it.dead = true;
+            it.vx = 0; it.vr = 0;
+            landed++;
+            n2.textContent = landed;
+            n3.textContent = Math.min(100, Math.round(landed * 6.5));
+          }
+        }
+      }
+    }
+  }
+
+  function paint() {
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      it.el.style.left = it.x.toFixed(1) + 'px';
+      it.el.style.top = it.y.toFixed(1) + 'px';
+      it.el.style.transform = 'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg)';
+    }
+  }
+
+  function loop() {
+    step();
+    paint();
+    requestAnimationFrame(loop);
+  }
+
+  function shake() {
+    bar.style.transform = 'translateY(-4px)';
+    setTimeout(function () { bar.style.transform = 'translateY(0)'; }, 90);
+  }
+  orange.addEventListener('click', shake);
+
+  var QS = new URLSearchParams(location.search);
+
+  if (QS.get('shot')) {
+    // 静态快照模式：同步把一堆面包打出去并模拟到落地，方便截图
+    document.body.classList.add('snap');
+    var plan = [22, 18, 26, 30, 19, 24, 31, 17, 27, 20, 23, 25, 28, 16, 29, 21];
+    for (var p = 0; p < plan.length; p++) {
+      shoot(W * (0.32 + Math.random() * 0.36), H * (0.42 + Math.random() * 0.1), plan[p]);
+    }
+    for (var s = 0; s < 900; s++) step();
+    paint();
+    document.getElementById('hint').style.opacity = '0.55';
+  } else {
+    // 开场自动示例：证明这东西真的能发射
+    setTimeout(function () { shoot(W * 0.5, H * 0.47); }, 320);
+    setTimeout(function () { shoot(W * 0.5, H * 0.47); }, 480);
+    setTimeout(function () { fire(2); }, 660);
+    setTimeout(function () { fire(1); }, 900);
+    requestAnimationFrame(loop);
+  }
+})();
+
+</script>
+</body>
+</html>
