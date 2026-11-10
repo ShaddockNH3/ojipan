@@ -553,6 +553,7 @@
       document.body.classList.add('mode-' + to);
       measure();
       wipe();
+      btnSwitch.style.display = 'none';
       if (to === 'clean') {
         crashed = false;
         asked = true;
@@ -595,10 +596,7 @@
     setTimeout(function () {
       document.body.classList.remove('crash');
       dumpAll();
-      switchMode('ugly', function () {
-        flash('（装不下去了）');
-        btnSwitch.style.display = 'inline-block';
-      });
+      switchMode('ugly', function () { flash('（装不下去了）'); });
     }, 320);
   }
 
