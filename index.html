@@ -165,6 +165,8 @@
   body.mode-ugly .bread{
     filter:drop-shadow(0 0 10px rgba(255,215,0,.85)) drop-shadow(0 0 22px rgba(160,32,240,.6));
   }
+  body.mode-ugly .bread.rest{filter:drop-shadow(0 0 5px rgba(255,215,0,.5));}
+  body.mode-clean .bread.rest{filter:none;}
   body.mode-clean .bread{
     filter:drop-shadow(0 2px 3px rgba(28,25,23,.10));
   }
@@ -354,7 +356,7 @@
   measure();
   window.addEventListener('resize', function () { measure(); realign(); });
 
-  function confusion() { return Math.min(100, Math.round(landed * 2)); }
+  function confusion() { return Math.min(100, Math.round(landed * 0.5)); }
 
   var AC = null;
   function blip(f) {
@@ -492,7 +494,9 @@
           it.vr *= 0.55;
           it.bounces++;
           if (it.bounces === 1) {
-            if (mode === 'ugly') pop(it.x, floor, WHACK[Math.floor(Math.random() * WHACK.length)], 18 + Math.random() * 14);
+            if (mode === 'ugly' && Math.random() < 0.4 && sky.getElementsByClassName('pop').length < 14) {
+              pop(it.x, floor, WHACK[Math.floor(Math.random() * WHACK.length)], 18 + Math.random() * 14);
+            }
             blip(140);
           }
         } else {
@@ -502,6 +506,7 @@
           if (Math.abs(it.vx) < 0.35 && Math.abs(it.vr) < 0.6) {
             it.dead = true;
             it.vx = 0; it.vr = 0;
+            it.el.classList.add('rest');
             landed++;
             syncUI();
             if (!SNAP) checkTrigger();
@@ -511,10 +516,10 @@
     }
   }
 
-  function paint() {
+  function paint(force) {
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
-      if (it.gone) continue;
+      if (it.gone || (it.dead && !force)) continue;
       it.el.style.left = it.x.toFixed(1) + 'px';
       it.el.style.top = it.y.toFixed(1) + 'px';
       it.el.style.transform = 'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg)';
@@ -526,7 +531,7 @@
       var it = items[i];
       if (it.dead) it.y = GY - it.size * 0.34 - it.jit;
     }
-    paint();
+    paint(true);
   }
 
   function loop() {
@@ -547,12 +552,10 @@
       document.body.classList.remove('mode-ugly', 'mode-clean');
       document.body.classList.add('mode-' + to);
       measure();
+      wipe();
       if (to === 'clean') {
-        wipe();
         crashed = false;
         asked = true;
-      } else {
-        realign();
       }
       syncUI();
       veil.className = '';
@@ -576,6 +579,7 @@
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       it.dead = false;
+      it.el.classList.remove('rest');
       it.vy = 9 + Math.random() * 9;
       it.vx = it.vx * 1.6 + (Math.random() - 0.5) * 8;
       it.vr = (Math.random() - 0.5) * 30;
@@ -647,9 +651,8 @@
       document.body.classList.add('mode-clean');
       measure();
     }
-    var plan = mode === 'clean'
-      ? [22, 26, 30, 19, 27, 24, 31, 20, 25, 28, 16, 23, 29, 18, 26, 21, 30, 24, 27, 19, 25, 17, 28, 22, 26, 20, 29, 23, 18, 27, 21, 25]
-      : [22, 18, 26, 30, 19, 24, 31, 17, 27, 20, 23, 25, 28, 16, 29, 21, 26, 19, 24, 30, 18, 27, 22, 25, 28, 20, 23, 26, 17, 29, 21, 24, 30, 19, 27, 22];
+    var plan = [];
+    for (var q = 0; q < 120; q++) plan.push(16 + Math.random() * 16);
     var ox = W * 0.5, oy = mode === 'clean' ? H * 0.44 : H * 0.47;
     for (var p = 0; p < plan.length; p++) {
       shot(ox + (Math.random() - 0.5) * W * 0.24, oy, plan[p]);
