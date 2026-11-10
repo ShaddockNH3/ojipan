@@ -105,6 +105,18 @@
   .ugly-mini:hover{opacity:1;transform:rotate(-2deg) scale(1.06);color:#fff;}
   @media (max-width:560px){
     .ugly-mini{font-size:9px;padding:4px 6px;letter-spacing:0;opacity:.8;}
+    #title{font-size:29px;letter-spacing:1px;-webkit-text-stroke:1.4px #a020f0;
+      text-shadow:2px 2px 0 #6a0dad, 4px 4px 0 #000, 0 0 18px #b06cff;}
+    #ticker{top:58px;height:26px;font-size:10px;letter-spacing:1px;}
+    #orange{width:130px;height:130px;margin:-65px 0 0 -65px;font-size:64px;border-width:6px;}
+    #hint{top:calc(47% + 84px);font-size:13px;letter-spacing:1px;}
+    .deco{font-size:28px;opacity:.35;}
+    #bar{height:auto;flex-direction:column;align-items:stretch;gap:5px;
+      padding:7px 10px 8px;font-size:12px;letter-spacing:0;}
+    #stats{white-space:normal;line-height:1.45;overflow:visible;}
+    #stats b{font-size:14px;}
+    .bar-btns{justify-content:flex-end;gap:6px;}
+    .ugly-btn{font-size:11px;padding:3px 9px;border-width:3px;transform:rotate(1deg);}
   }
   .ugly-btn:hover{transform:rotate(-3deg) scale(1.08);color:#fff;}
   .ugly-btn:active{transform:translate(2px,2px) rotate(1deg);box-shadow:none;}
@@ -171,16 +183,7 @@
 
   /* ---------- 共用层 ---------- */
   #sky{position:fixed;inset:0;pointer-events:none;z-index:4;overflow:hidden;}
-  .bread{position:absolute;line-height:1;transform-origin:50% 50%;}
-  .bread .bd-e{display:block;}
-  .bread svg{display:none;}
-  body.mode-ugly .bread{filter:none;}
-  body.mode-ugly .bd-e{
-    text-shadow:0 0 6px rgba(255,215,0,.9), 0 0 15px rgba(160,32,240,.65);
-  }
-  body.mode-ugly .bread.rest .bd-e{
-    text-shadow:0 0 6px rgba(255,215,0,.55);
-  }
+  #cv{position:absolute;left:0;top:0;display:block;}
   /* 一条静态的金紫氛围光带，比给两百个节点各挂一层模糊便宜太多 */
   body.mode-ugly #sky::before{
     content:'';position:absolute;left:0;right:0;bottom:0;height:280px;
@@ -188,12 +191,7 @@
       rgba(255,215,0,.20), rgba(160,32,240,.20) 46%, rgba(160,32,240,0) 76%);
     pointer-events:none;
   }
-  body.mode-clean .bread.rest{filter:none;}
-  body.mode-clean .bread{
-    filter:drop-shadow(0 2px 3px rgba(28,25,23,.10));
-  }
-  body.mode-clean .bread .bd-e{display:none;}
-  body.mode-clean .bread svg{display:block;}
+
 
   .pop{
     position:absolute;font-size:20px;font-style:italic;color:#ffd700;white-space:nowrap;
@@ -334,7 +332,7 @@
   </footer>
 </div>
 
-<div id="sky"></div>
+<div id="sky"><canvas id="cv"></canvas></div>
 
 <div id="modal">
   <div class="m-box">
@@ -353,6 +351,8 @@
 <script>
 (function () {
   var sky = document.getElementById('sky');
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
   var orange = document.getElementById('orange');
   var cOrb = document.getElementById('c-orange');
   var n1 = document.getElementById('n1'), n2 = document.getElementById('n2'), n3 = document.getElementById('n3');
@@ -365,10 +365,84 @@
   var cSwitch = document.getElementById('c-switch');
   var cSwitchCount = document.getElementById('c-switch-count');
 
-  var BREAD_SVG = '<svg viewBox="0 0 42 37" width="1.12em" height="0.99em" aria-hidden="true">' +
-    '<path d="M5 14 Q5 5 12 5 Q17 5 20 8 Q23 5 29 5 Q37 5 37 14 V26 Q37 31 31 31 H11 Q5 31 5 26 Z" fill="#F6DDB4"/>' +
-    '<path d="M5 14 Q5 5 12 5 Q17 5 20 8 Q23 5 29 5 Q37 5 37 14 V26 Q37 31 31 31 H11 Q5 31 5 26 Z" fill="none" stroke="#E4BC85" stroke-width="1.6"/>' +
-    '<path d="M15 12 v12 M21 11 v13 M27 12 v12" stroke="#E4BC85" stroke-width="1.3" opacity="0.75" stroke-linecap="round"/></svg>';
+  /* ---------- 渲染层：一张 canvas，面包都是预烘焙好光晕的位图 ---------- */
+  var FONT = 64;        // 精灵里 emoji 的字号（逻辑像素）
+  var LBOX = 132;       // 精灵画布逻辑边长，四周留给光晕
+  var DPR = 0;          // 0 表示还没初始化
+  var SP_LIT = [], SP_DIM = [], SP_TOAST = null;
+  var EMOJIS = ['\uD83C\uDF5E', '\uD83E\uDD50', '\uD83E\uDD56'];  // 🍞 🥐 🥖
+  var TOAST_BODY = new Path2D('M5 14 Q5 5 12 5 Q17 5 20 8 Q23 5 29 5 Q37 5 37 14 V26 Q37 31 31 31 H11 Q5 31 5 26 Z');
+  var TOAST_NOTCH = new Path2D('M15 12 v12 M21 11 v13 M27 12 v12');
+
+  function newSprite() {
+    var c = document.createElement('canvas');
+    c.width = c.height = Math.round(LBOX * DPR);
+    var g = c.getContext('2d');
+    g.scale(DPR, DPR);
+    return [c, g];
+  }
+
+  function bakeEmoji(ch, lit) {
+    var r = newSprite(), c = r[0], g = r[1], mid = LBOX / 2;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = FONT + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    if (lit) {
+      g.shadowColor = 'rgba(255,215,0,.95)';
+      g.shadowBlur = 9 * DPR;
+      g.fillText(ch, mid, mid);
+      g.shadowColor = 'rgba(160,32,240,.8)';
+      g.shadowBlur = 20 * DPR;
+      g.fillText(ch, mid, mid);
+    } else {
+      g.shadowColor = 'rgba(255,215,0,.5)';
+      g.shadowBlur = 6 * DPR;
+      g.fillText(ch, mid, mid);
+    }
+    g.shadowBlur = 0;
+    g.fillText(ch, mid, mid);
+    return c;
+  }
+
+  function bakeToast() {
+    var r = newSprite(), c = r[0], g = r[1];
+    var k = FONT * 1.08 / 42;
+    g.translate(LBOX / 2, LBOX / 2);
+    g.scale(k, k);
+    g.translate(-21, -18.5);
+    g.fillStyle = '#F6DDB4';
+    g.fill(TOAST_BODY);
+    g.lineJoin = 'round';
+    g.strokeStyle = '#E4BC85';
+    g.lineWidth = 1.7;
+    g.stroke(TOAST_BODY);
+    g.globalAlpha = 0.72;
+    g.lineCap = 'round';
+    g.lineWidth = 1.4;
+    g.stroke(TOAST_NOTCH);
+    return c;
+  }
+
+  function bakeSprites() {
+    SP_LIT = []; SP_DIM = [];
+    for (var i = 0; i < EMOJIS.length; i++) {
+      SP_LIT.push(bakeEmoji(EMOJIS[i], true));
+      SP_DIM.push(bakeEmoji(EMOJIS[i], false));
+    }
+    SP_TOAST = bakeToast();
+  }
+
+  function setupCanvas() {
+    var d = Math.min(window.devicePixelRatio || 1, 2);
+    if (d !== DPR) { DPR = d; bakeSprites(); }
+    var w = Math.round(W * DPR), h = Math.round(H * DPR);
+    if (cv.width !== w || cv.height !== h) {
+      cv.width = w;
+      cv.height = h;
+      cv.style.width = W + 'px';
+      cv.style.height = H + 'px';
+    }
+  }
 
   var mode = 'ugly';
   var soundOn = true;
@@ -381,7 +455,9 @@
   var switching = false;
   var SNAP = false;
   var items = [];
-  var MAX_BREADS = 280;   // 再往上加只会重叠，纯烧显卡
+  var MAX_BREADS = 320;   // 再往上加只会重叠，纯烧显卡
+  var statsDirty = true;  // 计数攒到下一帧一起刷
+  var popCount = 0;
   var launched = 0, landed = 0;
   var gen = 0;
   var W = 0, H = 0, GY = 0;
@@ -390,7 +466,12 @@
   function measure() {
     W = window.innerWidth;
     H = window.innerHeight;
-    GY = H - (mode === 'clean' ? 118 : 56);
+    var barEl = document.getElementById('bar');
+    var footEl = document.querySelector('.c-foot');
+    var barH = (barEl && barEl.offsetHeight) || 56;
+    var footH = (footEl && footEl.offsetHeight) || 118;
+    GY = H - (mode === 'clean' ? footH : barH + 8);
+    setupCanvas();
   }
   measure();
   window.addEventListener('resize', function () { measure(); realign(); });
@@ -398,8 +479,12 @@
   function confusion() { return Math.min(100, Math.round(landed * 0.5)); }
 
   var AC = null;
+  var lastBlip = -1e9;
   function blip(f) {
     if (!soundOn) return;
+    var now = performance.now();
+    if (now - lastBlip < 40) return;
+    lastBlip = now;
     try {
       if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
       var o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
@@ -421,8 +506,9 @@
     d.style.top = y + 'px';
     if (size) d.style.fontSize = size + 'px';
     sky.appendChild(d);
+    popCount++;
     if (!document.body.classList.contains('snap')) {
-      setTimeout(function () { d.remove(); }, 1000);
+      setTimeout(function () { d.remove(); popCount--; }, 1000);
     }
   }
 
@@ -436,25 +522,18 @@
 
   function shot(ox, oy, power) {
     if (items.length >= MAX_BREADS) {
+      var idx = -1;
       for (var k = 0; k < items.length; k++) {
-        if (items[k].dead) { items[k].el.remove(); items.splice(k, 1); break; }
+        if (items[k].dead) { idx = k; break; }
       }
+      items.splice(idx < 0 ? 0 : idx, 1);
     }
     var size = 28 + Math.random() * 44;
     var angle = (-155 + Math.random() * 130) * Math.PI / 180;
     var sp = power || (13 + Math.random() * 15);
-    var el = document.createElement('div');
-    el.className = 'bread';
-    el.innerHTML = '<span class="bd-e">' + (Math.random() < 0.15 ? '🥐' : (Math.random() < 0.1 ? '🥖' : '🍞')) + '</span>' + BREAD_SVG;
-    el.style.fontSize = size + 'px';
-    el.style.zIndex = 10 + Math.floor(Math.random() * 70);
-    el.style.left = ox + 'px';
-    el.style.top = oy + 'px';
-    el.style.transform = 'translate(-50%,-50%) rotate(0deg)';
-    sky.appendChild(el);
-
+    var r0 = Math.random();
     items.push({
-      el: el, x: ox, y: oy,
+      x: ox, y: oy,
       vx: Math.cos(angle) * sp,
       vy: Math.sin(angle) * sp,
       rot: 0,
@@ -463,12 +542,13 @@
         ? (Math.random() < 0.3 ? Math.random() * 14 : 0)
         : (Math.random() < 0.6 ? Math.random() * 40 : 0),
       size: size,
+      kind: r0 < 0.15 ? 1 : (r0 < 0.25 ? 2 : 0),
       bounces: 0,
       dead: false,
       gone: false
     });
     launched++;
-    syncUI();
+    statsDirty = true;
     blip(280 + Math.random() * 380);
   }
 
@@ -485,16 +565,17 @@
     }
   }
 
-  function syncUI() {
+  var last = { a: -1, b: -1, c: -1, d: -1 };
+  function syncStats() {
     var pct = confusion();
-    n1.textContent = launched;
-    n2.textContent = landed;
-    n3.textContent = pct;
-    n4.textContent = switchCount;
-    cPct.textContent = pct + '%';
-    cFill.style.width = pct + '%';
-    cCount.textContent = '已发射 ' + launched + ' 个';
-    cSwitchCount.textContent = '切换 ' + switchCount + ' 次';
+    if (last.a !== launched) { last.a = launched; n1.textContent = launched; cCount.textContent = '已发射 ' + launched + ' 个'; }
+    if (last.b !== landed) { last.b = landed; n2.textContent = landed; }
+    if (last.c !== pct) { last.c = pct; n3.textContent = pct; cPct.textContent = pct + '%'; cFill.style.width = pct + '%'; }
+    if (last.d !== switchCount) { last.d = switchCount; n4.textContent = switchCount; cSwitchCount.textContent = '切换 ' + switchCount + ' 次'; }
+  }
+
+  function syncUI() {
+    syncStats();
     btnSwitch.style.display = (everSwitched || declined) ? 'inline-block' : 'none';
     cSwitch.style.display = cleanVisits >= 2 ? 'inline-block' : 'none';
   }
@@ -528,7 +609,6 @@
       if (it.x > W - 14) { it.x = W - 14; it.vx = -Math.abs(it.vx) * 0.62; it.vr *= -0.8; }
 
       if (it.y > H + 260) {
-        it.el.remove();
         it.gone = true;
         continue;
       }
@@ -542,7 +622,7 @@
           it.vr *= 0.55;
           it.bounces++;
           if (it.bounces === 1) {
-            if (mode === 'ugly' && Math.random() < 0.4 && sky.getElementsByClassName('pop').length < 14) {
+            if (mode === 'ugly' && Math.random() < 0.4 && popCount < 14) {
               pop(it.x, floor, WHACK[Math.floor(Math.random() * WHACK.length)], 18 + Math.random() * 14);
             }
             blip(140);
@@ -554,9 +634,8 @@
           if (Math.abs(it.vx) < 0.35 && Math.abs(it.vr) < 0.6) {
             it.dead = true;
             it.vx = 0; it.vr = 0;
-            it.el.classList.add('rest');
             landed++;
-            syncUI();
+            statsDirty = true;
             if (!SNAP) checkTrigger();
           }
         }
@@ -564,14 +643,23 @@
     }
   }
 
-  function paint(force) {
+  var DEG = Math.PI / 180;
+  function paint() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    var clean = mode === 'clean';
+    var d = DPR, half = LBOX / 2;
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
-      if (it.gone || (it.dead && !force)) continue;
-      it.el.style.left = it.x.toFixed(1) + 'px';
-      it.el.style.top = it.y.toFixed(1) + 'px';
-      it.el.style.transform = 'translate(-50%,-50%) rotate(' + it.rot.toFixed(1) + 'deg)';
+      if (it.gone) continue;
+      var sp = clean ? SP_TOAST : (it.dead ? SP_DIM[it.kind] : SP_LIT[it.kind]);
+      var k = (it.size / FONT) * d;
+      var rad = it.rot * DEG;
+      var cs = Math.cos(rad) * k, sn = Math.sin(rad) * k;
+      ctx.setTransform(cs, sn, -sn, cs, it.x * d, it.y * d);
+      ctx.drawImage(sp, -half, -half, LBOX, LBOX);
     }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   function realign() {
@@ -579,12 +667,12 @@
       var it = items[i];
       if (it.dead) it.y = GY - it.size * 0.34 - it.jit;
     }
-    paint(true);
   }
 
   function loop() {
     step();
     paint();
+    if (statsDirty) { statsDirty = false; syncStats(); }
     var dirty = false;
     for (var i = 0; i < items.length; i++) { if (items[i].gone) { dirty = true; break; } }
     if (dirty) items = items.filter(function (x) { return !x.gone; });
@@ -619,12 +707,13 @@
 
   function wipe() {
     gen++;
-    for (var i = 0; i < items.length; i++) items[i].el.remove();
     items = [];
     var ps = sky.querySelectorAll('.pop');
     for (var k = 0; k < ps.length; k++) ps[k].remove();
+    popCount = 0;
     launched = 0;
     landed = 0;
+    statsDirty = true;
   }
 
   function dumpAll() {
@@ -632,7 +721,6 @@
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       it.dead = false;
-      it.el.classList.remove('rest');
       it.vy = 9 + Math.random() * 9;
       it.vx = it.vx * 1.6 + (Math.random() - 0.5) * 8;
       it.vr = (Math.random() - 0.5) * 30;
@@ -654,7 +742,6 @@
 
   function clearAll() {
     gen++;
-    items.forEach(function (it) { it.el.remove(); });
     items = [];
     launched = 0;
     landed = 0;
